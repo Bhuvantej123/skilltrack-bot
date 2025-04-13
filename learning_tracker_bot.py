@@ -30,7 +30,8 @@ def load_data():
         "goal": None,
         "last_log_date": None,
         "custom_daily_duration": 1,
-        "daily_topic_targets_met": {}
+        "daily_topic_targets_met": {},
+        "roadmap": {}
     }
 
     if os.path.exists(DATA_FILE):
@@ -48,6 +49,27 @@ def save_data(data):
 
 user_data = load_data()
 
+# ----- Daily Study Duration Setting ----- #
+st.sidebar.subheader("⏱️ Custom Daily Learning Duration")
+daily_duration = st.sidebar.slider("How many hours per day do you plan to study?", 0.5, 12.0, float(user_data.get("custom_daily_duration", 1)), 0.5)
+user_data["custom_daily_duration"] = daily_duration
+
+# ----- Generate Dynamic Roadmap Based on Custom Duration ----- #
+def generate_roadmap(topics, daily_hours):
+    topics_per_day = int(daily_hours)
+    if topics_per_day == 0:
+        topics_per_day = 1
+
+    roadmap = {}
+    day_count = 0
+    for i in range(0, len(topics), topics_per_day):
+        week = f"Week {(day_count // 7) + 1}"
+        if week not in roadmap:
+            roadmap[week] = []
+        roadmap[week].extend(topics[i:i + topics_per_day])
+        day_count += 1
+    return roadmap
+
 # ----- Learning Goal Selection ----- #
 if not user_data["goal"]:
     st.sidebar.subheader("🌟 Choose Your Learning Goal")
@@ -59,55 +81,32 @@ if not user_data["goal"]:
                 "Supervised Learning", "Unsupervised Learning", "Regression", "Classification", "Decision Trees",
                 "Random Forests", "XGBoost", "Model Evaluation", "Overfitting", "Underfitting", "Feature Engineering"
             ]
-            user_data["roadmap"] = {
-                "Week 1": ["Supervised Learning", "Unsupervised Learning"],
-                "Week 2": ["Regression", "Classification"],
-                "Week 3": ["Decision Trees", "Random Forests"],
-                "Week 4": ["XGBoost", "Model Evaluation", "Overfitting", "Underfitting", "Feature Engineering"]
-            }
         elif goal == "Web Development":
             user_data["learning_path"] = [
                 "HTML", "CSS", "Flexbox", "Grid", "JavaScript", "React", "Node.js", "APIs", "Express.js", "MongoDB",
                 "Frontend Deployment", "Backend Deployment"
             ]
-            user_data["roadmap"] = {
-                "Week 1": ["HTML", "CSS"],
-                "Week 2": ["Flexbox", "Grid", "JavaScript"],
-                "Week 3": ["React", "Node.js"],
-                "Week 4": ["APIs", "Express.js", "MongoDB"],
-                "Week 5": ["Frontend Deployment", "Backend Deployment"]
-            }
         elif goal == "Data Science":
             user_data["learning_path"] = [
                 "Python Basics", "Numpy", "Pandas", "Data Visualization", "EDA", "Data Cleaning",
                 "Statistical Analysis", "Machine Learning Basics", "Model Evaluation"
             ]
-            user_data["roadmap"] = {
-                "Week 1": ["Python Basics", "Numpy"],
-                "Week 2": ["Pandas", "Data Visualization"],
-                "Week 3": ["EDA", "Data Cleaning"],
-                "Week 4": ["Statistical Analysis", "Machine Learning Basics", "Model Evaluation"]
-            }
         elif goal == "App Development":
             user_data["learning_path"] = [
                 "Flutter Basics", "Widgets", "Navigation", "State Management", "Firebase Integration",
                 "API Calls", "Authentication", "Deployment"
             ]
-            user_data["roadmap"] = {
-                "Week 1": ["Flutter Basics", "Widgets"],
-                "Week 2": ["Navigation", "State Management"],
-                "Week 3": ["Firebase Integration", "API Calls"],
-                "Week 4": ["Authentication", "Deployment"]
-            }
         else:
             user_data["learning_path"] = []
-            user_data["roadmap"] = {}
 
+        user_data["roadmap"] = generate_roadmap(user_data["learning_path"], user_data["custom_daily_duration"])
         save_data(user_data)
-        st.rerun()
+        st.experimental_rerun()
 
 if not user_data["goal"]:
     st.stop()
+
+save_data(user_data)
 
 st.sidebar.success(f"Current Goal: {user_data['goal']}")
 
@@ -115,12 +114,6 @@ st.sidebar.success(f"Current Goal: {user_data['goal']}")
 today = datetime.date.today().isoformat()
 if user_data.get("last_log_date") != today:
     st.warning("👋 Don't forget to log your progress today!")
-
-# ----- Daily Study Duration Setting ----- #
-st.sidebar.subheader("⏱️ Custom Daily Learning Duration")
-daily_duration = st.sidebar.slider("How many hours per day do you plan to study?", 0.5, 12.0, float(user_data.get("custom_daily_duration", 1)), 0.5)
-user_data["custom_daily_duration"] = daily_duration
-save_data(user_data)
 
 # ----- Combine topics for detection ----- #
 all_topics = {topic.lower(): topic for topic in user_data["learning_path"]}

@@ -23,13 +23,24 @@ os.makedirs(DATA_DIR, exist_ok=True)
 DATA_FILE = os.path.join(DATA_DIR, f"{username}_progress.json")
 
 def load_data():
+    default_data = {
+        "logs": [],
+        "completed_topics": [],
+        "learning_path": [],
+        "goal": None,
+        "last_log_date": None,
+        "custom_daily_duration": 1,
+        "daily_topic_targets_met": {}
+    }
+
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r') as f:
-            return json.load(f)
-    return {
-        "logs": [], "completed_topics": [], "learning_path": [], "goal": None,
-        "last_log_date": None, "custom_daily_duration": 1, "daily_topic_targets_met": {}
-    }
+            data = json.load(f)
+        for key, value in default_data.items():
+            if key not in data:
+                data[key] = value
+        return data
+    return default_data
 
 def save_data(data):
     with open(DATA_FILE, 'w') as f:
@@ -152,7 +163,7 @@ if st.button("Send") and user_input:
         st.write("Got it! I didn't detect specific topics, but your log was saved.")
 
     if met_target:
-        st.success(f"🎯 You met your target of {expected_topics_today} topic(s) today!")
+        st.success(f"🌟 You met your target of {expected_topics_today} topic(s) today!")
     else:
         st.warning(f"⚠️ You learned {actual_topics} topic(s) today. Target was {expected_topics_today}.")
 
@@ -164,6 +175,3 @@ if user_input:
         st.info(f"Next topic to learn: **{remaining[0]}**")
     else:
         st.success("🎉 You've completed your learning path for this goal!")
-
-
-

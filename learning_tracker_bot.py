@@ -4,6 +4,7 @@ import json
 import os
 import calendar
 import random
+from datetime import timedelta
 
 # ----- Set up ----- #
 st.set_page_config(page_title="SkillTrack App")
@@ -140,10 +141,14 @@ if not user_data["goals"]:
                     "priority": "medium"
                 }
         st.success("Goals added successfully!")
-        for goal_input in selected_goals:
-            st.info(f"### Roadmap for {goal_input}")
-            for idx, topic in enumerate(user_data["roadmaps"][goal_input], 1):
-                st.markdown(f"- {idx}. {topic}")
+
+        # Side-by-side roadmap display
+        cols = st.columns(len(selected_goals))
+        for idx, goal_input in enumerate(selected_goals):
+            with cols[idx]:
+                st.info(f"### {goal_input} Roadmap")
+                for i, topic in enumerate(user_data["roadmaps"][goal_input], 1):
+                    st.markdown(f"{i}. {topic}")
         save_data(user_data)
         st.stop()
 elif user_data["custom_daily_duration"] is None:
@@ -168,7 +173,8 @@ else:
 
         for topic in user_data["roadmaps"].get(goal, []):
             is_done = user_data["progress"][goal].get(topic, False)
-            checkbox = st.checkbox(label=topic, value=is_done, key=f"{goal}_{topic}")
+            checkbox_key = f"{username}_{goal}_{topic}"
+            checkbox = st.checkbox(label=topic, value=is_done, key=checkbox_key)
             user_data["progress"][goal][topic] = checkbox
         save_data(user_data)
 
@@ -192,15 +198,58 @@ if user_data["goals"]:
         st.sidebar.write(f"**{goal}**: {percent}% complete")
         st.sidebar.progress(percent)
 
-# Display logs
-tabs = st.tabs(["📔 Logs", "📅 Calendar View"])
+# Display logs and calendar view
+tabs = st.tabs(["📔 Logs", "🗕 Calendar View"])
 
 with tabs[0]:
     if user_data["logs"]:
         for log in reversed(user_data["logs"]):
-            st.write(f"📅 {log['date']} — {log['goal']}\n📝 {log['entry']}")
+            st.write(f"🗓 {log['date']} — {log['goal']}\n📜 {log['entry']}")
     else:
         st.info("No logs yet. Start tracking your progress!")
+
+with tabs[1]:
+    st.markdown("### Calendar Logs")
+    selected_date = st.date_input("Pick a date to view logs")
+    selected_date_str = str(selected_date)
+    logs_for_date = [log for log in user_data["logs"] if log["date"] == selected_date_str]
+    if logs_for_date:
+        for log in logs_for_date:
+            st.write(f"🗓 {log['date']} — {log['goal']}\n📜 {log['entry']}")
+    else:
+        st.info("No entries found for this date.")
+
+# ----- Weekly Progress Analysis & Feedback ----- #
+st.subheader("📈 Weekly Progress Analysis")
+
+one_week_ago = datetime.date.today() - timedelta(days=7)
+logs_past_week = [
+    log for log in user_data["logs"]
+    if datetime.date.fromisoformat(log["date"]) >= one_week_ago
+]
+
+topics_completed_this_week = {
+    goal: sum(
+        1 for topic, done in user_data["progress"][goal].items()
+        if done and any(
+            goal in log["goal"] and topic.lower() in log["entry"].lower()
+            for log in logs_past_week
+        )
+    )
+    for goal in user_data["goals"]
+}
+
+for goal in user_data["goals"]:
+    total = len(user_data["progress"][goal])
+    completed = topics_completed_this_week[goal]
+    st.markdown(f"**{goal}**: You completed **{completed}** out of **{total}** topics this week.")
+
+    if completed == 0:
+        st.warning("Try to get at least one topic done this week. You got this! 💪")
+    elif completed < 3:
+        st.info("Nice start! Aim to complete 3 or more topics weekly for good momentum. 🚀")
+    else:
+        st.success("Great job! You're making solid weekly progress. Keep it up! 🌟")
 
 # Display chat history
 st.divider()

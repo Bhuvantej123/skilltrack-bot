@@ -109,7 +109,7 @@ if "chat_history" not in st.session_state:
 
 # Learning path setup first
 if not user_data["goals"]:
-    st.markdown("### 🎯 Let's set your learning path(s)")
+    st.markdown("### 🌟 Let's set your learning path(s)")
     multiple = st.radio("Would you like to select multiple learning paths?", ["Yes", "No"])
 
     if multiple == "Yes":
@@ -143,6 +143,13 @@ else:
     st.markdown("### 📋 Your Learning Roadmap")
     for goal in user_data["goals"]:
         st.markdown(f"#### {goal}")
+        if st.button(f"Delete {goal}", key=f"delete_{goal}"):
+            user_data["goals"].remove(goal)
+            user_data["learning_paths"].pop(goal, None)
+            user_data["roadmaps"].pop(goal, None)
+            user_data["progress"].pop(goal, None)
+            save_data(user_data)
+            st.experimental_rerun()
         for topic in user_data["roadmaps"].get(goal, []):
             is_done = user_data["progress"][goal].get(topic, False)
             checkbox = st.checkbox(label=topic, value=is_done, key=f"{goal}_{topic}")

@@ -3,11 +3,12 @@ import datetime
 import json
 import os
 import calendar
+import random
 
 # ----- Set up ----- #
-st.set_page_config(page_title="SkillTrack Bot")
-st.title("🤖 SkillTrack Bot")
-st.caption("Your chatbot assistant to track any learning journey.")
+st.set_page_config(page_title="SkillTrack App")
+st.title("📚 SkillTrack")
+st.caption("Your ultimate learning progress tracker")
 
 # ----- Multi-user Key Input ----- #
 st.sidebar.header("👤 User Login")
@@ -22,18 +23,42 @@ DATA_DIR = "user_data"
 os.makedirs(DATA_DIR, exist_ok=True)
 DATA_FILE = os.path.join(DATA_DIR, f"{username}_progress.json")
 
+# ----- Daily Motivational Quotes ----- #
+QUOTES = [
+    "Keep pushing forward, even small progress is progress!",
+    "Every expert was once a beginner.",
+    "You're doing great — keep it up!",
+    "Learning never exhausts the mind.",
+    "A little progress each day adds up to big results.",
+    "The future depends on what you do today."
+]
+
+def get_daily_quote():
+    today_index = datetime.date.today().toordinal() % len(QUOTES)
+    return QUOTES[today_index]
+
+# ----- Load/Save Data ----- #
+def make_json_serializable(obj):
+    if isinstance(obj, set):
+        return list(obj)
+    elif isinstance(obj, dict):
+        return {k: make_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [make_json_serializable(item) for item in obj]
+    else:
+        return obj
+
 def load_data():
     default_data = {
         "logs": [],
         "completed_topics": [],
-        "learning_path": [],
-        "goal": None,
+        "learning_paths": {},
+        "goals": [],
         "last_log_date": None,
         "custom_daily_duration": 1,
         "daily_topic_targets_met": {},
-        "roadmap": {}
+        "roadmaps": {}
     }
-
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r') as f:
             data = json.load(f)
@@ -44,127 +69,32 @@ def load_data():
     return default_data
 
 def save_data(data):
+    serializable_data = make_json_serializable(data)
     with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+        json.dump(serializable_data, f, indent=2)
 
 user_data = load_data()
 
-# ----- Daily Study Duration Setting ----- #
-st.sidebar.subheader("⏱️ Custom Daily Learning Duration")
-daily_duration = st.sidebar.slider("How many hours per day do you plan to study?", 0.5, 12.0, float(user_data.get("custom_daily_duration", 1)), 0.5)
-user_data["custom_daily_duration"] = daily_duration
+# ----- Predefined Learning Roadmaps with Subtopics ----- #
+ROADMAPS = {
+    "Machine Learning": [
+        "Python Basics", "Numpy & Pandas", "Data Visualization", "Statistics & Probability",
+        "Linear Regression", "Logistic Regression", "Decision Trees", "SVM",
+        "Ensemble Methods", "Clustering", "Dimensionality Reduction", "Model Evaluation",
+        "Neural Networks", "Deep Learning Basics", "Projects"
+    ],
+    "Web Development": [
+        "HTML & CSS", "JavaScript Basics", "DOM Manipulation", "Responsive Design",
+        "Version Control (Git)", "Frontend Frameworks (React)", "Backend Basics",
+        "APIs & REST", "Databases", "Authentication & Security", "Deployment", "Full Stack Project"
+    ],
+    "Data Science": [
+        "Python for Data Science", "Pandas & Numpy", "Matplotlib & Seaborn", "EDA",
+        "Data Cleaning", "Feature Engineering", "ML Algorithms", "Model Deployment"
+    ]
+}
 
-# ----- Generate Dynamic Roadmap Based on Custom Duration ----- #
-def generate_roadmap(topics, daily_hours):
-    topics_per_day = int(daily_hours)
-    if topics_per_day == 0:
-        topics_per_day = 1
+user_data["roadmaps"] = ROADMAPS
 
-    roadmap = {}
-    day_count = 0
-    for i in range(0, len(topics), topics_per_day):
-        week = f"Week {(day_count // 7) + 1}"
-        if week not in roadmap:
-            roadmap[week] = []
-        roadmap[week].extend(topics[i:i + topics_per_day])
-        day_count += 1
-    return roadmap
-
-# ----- Learning Goal Selection ----- #
-if not user_data["goal"]:
-    st.sidebar.subheader("🌟 Choose Your Learning Goal")
-    goal = st.sidebar.selectbox("What do you want to learn?", ["Machine Learning", "Web Development", "Data Science", "App Development", "Other"])
-    if st.sidebar.button("Set Goal"):
-        user_data["goal"] = goal
-        if goal == "Machine Learning":
-            user_data["learning_path"] = [
-                "Supervised Learning", "Unsupervised Learning", "Regression", "Classification", "Decision Trees",
-                "Random Forests", "XGBoost", "Model Evaluation", "Overfitting", "Underfitting", "Feature Engineering"
-            ]
-        elif goal == "Web Development":
-            user_data["learning_path"] = [
-                "HTML", "CSS", "Flexbox", "Grid", "JavaScript", "React", "Node.js", "APIs", "Express.js", "MongoDB",
-                "Frontend Deployment", "Backend Deployment"
-            ]
-        elif goal == "Data Science":
-            user_data["learning_path"] = [
-                "Python Basics", "Numpy", "Pandas", "Data Visualization", "EDA", "Data Cleaning",
-                "Statistical Analysis", "Machine Learning Basics", "Model Evaluation"
-            ]
-        elif goal == "App Development":
-            user_data["learning_path"] = [
-                "Flutter Basics", "Widgets", "Navigation", "State Management", "Firebase Integration",
-                "API Calls", "Authentication", "Deployment"
-            ]
-        else:
-            user_data["learning_path"] = []
-
-        user_data["roadmap"] = generate_roadmap(user_data["learning_path"], user_data["custom_daily_duration"])
-        save_data(user_data)
-        st.rerun()
-
-if not user_data["goal"]:
-    st.stop()
-
+# ----- Save ----- #
 save_data(user_data)
-
-st.sidebar.success(f"Current Goal: {user_data['goal']}")
-
-# ----- Daily Reminder to Log Progress ----- #
-today = datetime.date.today().isoformat()
-if user_data.get("last_log_date") != today:
-    st.warning("👋 Don't forget to log your progress today!")
-
-# ----- Combine topics for detection ----- #
-all_topics = {topic.lower(): topic for topic in user_data["learning_path"]}
-
-# ----- Chat Input ----- #
-st.subheader("💬 Chat with SkillTrack Bot")
-user_input = st.text_input("You:", placeholder="I learned Decision Trees and Flexbox today.")
-
-if st.button("Send") and user_input:
-    log_entry = {
-        'date': today,
-        'entry': user_input
-    }
-    user_data["logs"].append(log_entry)
-    user_data["last_log_date"] = today
-
-    topics_learned_today = []
-
-    for word in user_input.lower().split():
-        word_clean = word.strip(",.()")
-        if word_clean in all_topics:
-            topic = all_topics[word_clean]
-            if topic not in user_data["completed_topics"]:
-                user_data["completed_topics"].append(topic)
-                topics_learned_today.append(topic)
-
-    expected_topics_today = int(user_data["custom_daily_duration"])
-    actual_topics = len(topics_learned_today)
-    met_target = actual_topics >= expected_topics_today
-    user_data["daily_topic_targets_met"][today] = met_target
-
-    save_data(user_data)
-    st.success("✅ Logged your progress!")
-
-    st.markdown("---")
-    st.markdown("**🤖 SkillTrack Bot says:**")
-    if topics_learned_today:
-        st.write(f"Awesome! I logged the topics: {', '.join(topics_learned_today)}")
-    else:
-        st.write("Got it! I didn't detect specific topics, but your log was saved.")
-
-    if met_target:
-        st.success(f"🌟 You met your target of {expected_topics_today} topic(s) today!")
-    else:
-        st.warning(f"⚠️ You learned {actual_topics} topic(s) today. Target was {expected_topics_today}.")
-
-completed = [t for t in user_data["learning_path"] if t in user_data["completed_topics"]]
-remaining = [t for t in user_data["learning_path"] if t not in completed]
-
-if user_input:
-    if remaining:
-        st.info(f"Next topic to learn: **{remaining[0]}**")
-    else:
-        st.success("🎉 You've completed your learning path for this goal!")

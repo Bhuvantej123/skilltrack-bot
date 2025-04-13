@@ -6,7 +6,7 @@ import os
 # ----- Set up ----- #
 st.set_page_config(page_title="SkillTrack Bot")
 st.title("🤖 SkillTrack Bot")
-st.caption("Your chatbot assistant to track ML & Web Dev progress.")
+st.caption("Your chatbot assistant to track any learning journey.")
 
 # ----- Multi-user Key Input ----- #
 st.sidebar.header("👤 User Login")
@@ -25,7 +25,7 @@ def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r') as f:
             return json.load(f)
-    return {"logs": [], "completed_topics": []}
+    return {"logs": [], "completed_topics": [], "learning_path": [], "goal": None, "last_log_date": None}
 
 def save_data(data):
     with open(DATA_FILE, 'w') as f:
@@ -33,19 +33,50 @@ def save_data(data):
 
 user_data = load_data()
 
-# ----- Topic Roadmaps ----- #
-ml_roadmap = [
-    "Supervised Learning", "Unsupervised Learning", "Regression", "Classification", "Decision Trees",
-    "Random Forests", "XGBoost", "Model Evaluation", "Overfitting", "Underfitting", "Feature Engineering"
-]
+# ----- Learning Goal Selection ----- #
+if not user_data["goal"]:
+    st.sidebar.subheader("🎯 Choose Your Learning Goal")
+    goal = st.sidebar.selectbox("What do you want to learn?", ["Machine Learning", "Web Development", "Data Science", "App Development", "Other"])
+    if st.sidebar.button("Set Goal"):
+        user_data["goal"] = goal
+        if goal == "Machine Learning":
+            user_data["learning_path"] = [
+                "Supervised Learning", "Unsupervised Learning", "Regression", "Classification", "Decision Trees",
+                "Random Forests", "XGBoost", "Model Evaluation", "Overfitting", "Underfitting", "Feature Engineering"
+            ]
+        elif goal == "Web Development":
+            user_data["learning_path"] = [
+                "HTML", "CSS", "Flexbox", "Grid", "JavaScript", "React", "Node.js", "APIs", "Express.js", "MongoDB",
+                "Frontend Deployment", "Backend Deployment"
+            ]
+        elif goal == "Data Science":
+            user_data["learning_path"] = [
+                "Python Basics", "Numpy", "Pandas", "Data Visualization", "EDA", "Data Cleaning",
+                "Statistical Analysis", "Machine Learning Basics", "Model Evaluation"
+            ]
+        elif goal == "App Development":
+            user_data["learning_path"] = [
+                "Flutter Basics", "Widgets", "Navigation", "State Management", "Firebase Integration",
+                "API Calls", "Authentication", "Deployment"
+            ]
+        else:
+            user_data["learning_path"] = []
 
-web_roadmap = [
-    "HTML", "CSS", "Flexbox", "Grid", "JavaScript", "React", "Node.js", "APIs", "Express.js", "MongoDB",
-    "Frontend Deployment", "Backend Deployment"
-]
+        save_data(user_data)
+        st.experimental_rerun()
 
-# Combine for detection
-all_topics = {topic.lower(): topic for topic in ml_roadmap + web_roadmap}
+if not user_data["goal"]:
+    st.stop()
+
+st.sidebar.success(f"Current Goal: {user_data['goal']}")
+
+# ----- Daily Reminder to Log Progress ----- #
+today = datetime.date.today().isoformat()
+if user_data.get("last_log_date") != today:
+    st.warning("👋 Don't forget to log your progress today!")
+
+# ----- Combine topics for detection ----- #
+all_topics = {topic.lower(): topic for topic in user_data["learning_path"]}
 
 # ----- Chat Input ----- #
 st.subheader("💬 Chat with SkillTrack Bot")
@@ -53,10 +84,11 @@ user_input = st.text_input("You:", placeholder="I learned Decision Trees and Fle
 
 if st.button("Send") and user_input:
     log_entry = {
-        'date': datetime.date.today().isoformat(),
+        'date': today,
         'entry': user_input
     }
     user_data["logs"].append(log_entry)
+    user_data["last_log_date"] = today
 
     # Match topics
     for word in user_input.lower().split():
@@ -70,60 +102,73 @@ if st.button("Send") and user_input:
     st.success("✅ Logged your progress!")
 
 # ----- Progress Calculation ----- #
-ml_done = [t for t in ml_roadmap if t in user_data["completed_topics"]]
-web_done = [t for t in web_roadmap if t in user_data["completed_topics"]]
+completed = [t for t in user_data["learning_path"] if t in user_data["completed_topics"]]
+remaining = [t for t in user_data["learning_path"] if t not in completed]
 
 # ----- Chatbot Response ----- #
 if user_input:
     st.markdown("---")
     st.markdown("**🤖 SkillTrack Bot says:**")
-    if ml_done or web_done:
+    if completed:
         st.write("Nice! I’ve updated your progress.")
     else:
         st.write("Got it! Keep pushing forward.")
 
-    next_ml = [t for t in ml_roadmap if t not in user_data["completed_topics"]][:1]
-    next_web = [t for t in web_roadmap if t not in user_data["completed_topics"]][:1]
-
-    if next_ml:
-        st.info(f"Next ML topic to learn: **{next_ml[0]}**")
+    if remaining:
+        st.info(f"Next topic to learn: **{remaining[0]}**")
     else:
-        st.success("🎉 You've completed all ML topics!")
-
-    if next_web:
-        st.info(f"Next Web Dev topic to learn: **{next_web[0]}**")
-    else:
-        st.success("🎉 You've completed all Web Dev topics!")
+        st.success("🎉 You've completed your learning path for this goal!")
 
 # ----- Visual Progress ----- #
 st.subheader("📊 Your Learning Progress")
-col1, col2 = st.columns(2)
-with col1:
-    st.markdown("**Machine Learning**")
-    st.progress(len(ml_done) / len(ml_roadmap))
-    st.write(f"{len(ml_done)} / {len(ml_roadmap)} topics completed")
+st.progress(len(completed) / len(user_data["learning_path"]))
+st.write(f"{len(completed)} / {len(user_data['learning_path'])} topics completed")
 
-with col2:
-    st.markdown("**Web Development**")
-    st.progress(len(web_done) / len(web_roadmap))
-    st.write(f"{len(web_done)} / {len(web_roadmap)} topics completed")
+# ----- Personalized Learning Path Generator ----- #
+st.subheader("🎯 Your Personalized Learning Path")
+st.markdown("Based on your current progress, here's what we suggest next:")
+
+if remaining:
+    for i, topic in enumerate(remaining[:5], start=1):
+        st.write(f"{i}. {topic}")
+else:
+    st.success("You've completed your custom learning path! 🎉")
 
 # ----- Learning Roadmap (Daily, Weekly, Monthly) ----- #
 st.subheader("🗺️ Suggested Roadmap")
 with st.expander("📅 Daily Goals"):
-    st.markdown("- Learn 1 small topic (e.g., Regression, HTML)")
+    st.markdown("- Learn 1 small topic")
     st.markdown("- Practice 1 problem / mini project")
     st.markdown("- Log your learning in SkillTrack Bot")
 
 with st.expander("📆 Weekly Goals"):
-    st.markdown("- Complete 3–5 topics from either ML or Web Dev")
+    st.markdown("- Complete 3–5 topics")
     st.markdown("- Build a mini-project using what you learned")
     st.markdown("- Revise previous week’s concepts")
 
 with st.expander("🗓️ Monthly Goals"):
-    st.markdown("- Complete a full module (e.g., ML Regression or Web Frontend)")
+    st.markdown("- Complete a full module")
     st.markdown("- Create a capstone project and upload to GitHub")
     st.markdown("- Share progress on your portfolio or blog")
+
+# ----- Leaderboard ----- #
+st.subheader("🏆 Leaderboard")
+leaderboard = []
+
+for filename in os.listdir(DATA_DIR):
+    if filename.endswith("_progress.json"):
+        filepath = os.path.join(DATA_DIR, filename)
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+            if data.get("learning_path"):
+                score = len(data.get("completed_topics", [])) / len(data["learning_path"])
+                name = filename.replace("_progress.json", "")
+                leaderboard.append((name, round(score * 100, 1)))
+
+leaderboard.sort(key=lambda x: x[1], reverse=True)
+
+for rank, (name, progress) in enumerate(leaderboard[:10], start=1):
+    st.write(f"{rank}. **{name}** - {progress}% completed")
 
 # ----- Log History ----- #
 st.subheader("🗒️ Your Learning Log")
@@ -132,4 +177,5 @@ if user_data["logs"]:
         st.write(f"[{log['date']}] {log['entry']}")
 else:
     st.write("No logs yet. Start learning and log your first entry!")
+
 

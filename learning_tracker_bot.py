@@ -129,7 +129,7 @@ if not user_data["goals"]:
         for goal_input in selected_goals:
             st.info(f"### Roadmap for {goal_input}")
             for idx, topic in enumerate(user_data["roadmaps"][goal_input], 1):
-                st.write(f"{idx}. {topic}")
+                st.markdown(f"- {idx}. {topic}")
         save_data(user_data)
         st.stop()
 elif user_data["custom_daily_duration"] is None:
@@ -140,6 +140,15 @@ elif user_data["custom_daily_duration"] is None:
         save_data(user_data)
         st.experimental_rerun()
 else:
+    st.markdown("### 📋 Your Learning Roadmap")
+    for goal in user_data["goals"]:
+        st.markdown(f"#### {goal}")
+        for topic in user_data["roadmaps"].get(goal, []):
+            is_done = user_data["progress"][goal].get(topic, False)
+            checkbox = st.checkbox(label=topic, value=is_done, key=f"{goal}_{topic}")
+            user_data["progress"][goal][topic] = checkbox
+        save_data(user_data)
+
     user_input = st.text_input("💬 What did you work on today?", key="chat")
     if user_input:
         st.session_state.chat_history.append(("You", user_input))

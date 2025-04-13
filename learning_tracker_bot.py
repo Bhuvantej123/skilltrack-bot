@@ -101,7 +101,7 @@ if not user_data["goal"]:
 
         user_data["roadmap"] = generate_roadmap(user_data["learning_path"], user_data["custom_daily_duration"])
         save_data(user_data)
-        st.experimental_rerun()
+        st.rerun()
 
 if not user_data["goal"]:
     st.stop()

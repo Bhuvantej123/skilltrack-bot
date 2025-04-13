@@ -43,6 +43,16 @@ ROADMAPS = {
         "HTML & CSS", "JavaScript Basics", "DOM Manipulation", "Responsive Design",
         "Version Control (Git)", "Frontend Frameworks (React)", "Backend Basics",
         "APIs & REST", "Databases", "Authentication & Security", "Deployment", "Full Stack Project"
+    ],
+    "App Development": [
+        "Java/Kotlin or Swift Basics", "Mobile UI/UX Principles", "Navigation & Routing",
+        "State Management", "Local Storage", "APIs & Networking", "Authentication",
+        "Push Notifications", "Publishing to Play Store/App Store"
+    ],
+    "Data Science": [
+        "Python for Data Science", "Data Wrangling with Pandas", "Exploratory Data Analysis",
+        "Data Visualization with Matplotlib/Seaborn", "Statistics & Probability",
+        "Machine Learning Introduction", "Data Storytelling", "Capstone Project"
     ]
 }
 
@@ -68,7 +78,7 @@ def load_data():
         "learning_paths": {},
         "goals": [],
         "last_log_date": None,
-        "custom_daily_duration": 1,
+        "custom_daily_duration": None,
         "daily_topic_targets_met": {},
         "roadmaps": {},
         "progress": {},
@@ -97,31 +107,47 @@ st.success(get_daily_quote())
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Initial prompt based on goal or roadmap
+# Learning path setup first
 if not user_data["goals"]:
-    question = "What do you want to learn? (e.g., Machine Learning, Web Development, etc.)"
-else:
-    question = f"What did you work on today in {', '.join(user_data['goals'])}?"
+    st.markdown("### 🎯 Let's set your learning path(s)")
+    multiple = st.radio("Would you like to select multiple learning paths?", ["Yes", "No"])
 
-user_input = st.text_input("💬 You:", key="chat")
-
-if user_input:
-    st.session_state.chat_history.append(("You", user_input))
-    response = ""
-
-    if not user_data["goals"]:
-        user_data["goals"].append(user_input)
-        user_data["learning_paths"][user_input] = []
-        user_data["roadmaps"][user_input] = ROADMAPS.get(user_input, [])
-        user_data["progress"][user_input] = {topic: False for topic in ROADMAPS.get(user_input, [])}
-        response = f"Great! I've added {user_input} to your learning goals and built a roadmap for it."
+    if multiple == "Yes":
+        selected_goals = st.multiselect("Select what you want to learn:", list(ROADMAPS.keys()))
     else:
+        selected_goal = st.selectbox("Select what you want to learn:", list(ROADMAPS.keys()))
+        selected_goals = [selected_goal]
+
+    if selected_goals:
+        for goal_input in selected_goals:
+            if goal_input not in user_data["goals"]:
+                user_data["goals"].append(goal_input)
+                user_data["learning_paths"][goal_input] = []
+                user_data["roadmaps"][goal_input] = ROADMAPS.get(goal_input, [])
+                user_data["progress"][goal_input] = {topic: False for topic in ROADMAPS.get(goal_input, [])}
+        st.success("Goals added successfully!")
+        for goal_input in selected_goals:
+            st.info(f"### Roadmap for {goal_input}")
+            for idx, topic in enumerate(user_data["roadmaps"][goal_input], 1):
+                st.write(f"{idx}. {topic}")
+        save_data(user_data)
+        st.stop()
+elif user_data["custom_daily_duration"] is None:
+    duration = st.slider("⏱️ Set your custom learning time per day (hours):", 1, 8, 1)
+    if duration:
+        user_data["custom_daily_duration"] = duration
+        st.success(f"Awesome! You'll spend {duration} hour(s) per day learning.")
+        save_data(user_data)
+        st.experimental_rerun()
+else:
+    user_input = st.text_input("💬 What did you work on today?", key="chat")
+    if user_input:
+        st.session_state.chat_history.append(("You", user_input))
         today = str(datetime.date.today())
         user_data["logs"].append({"date": today, "goal": user_data["goals"], "entry": user_input})
-        response = "Nice progress! I've logged this entry for today."
-
-    st.session_state.chat_history.append(("Bot", response))
-    save_data(user_data)
+        response = "Great job! Your progress has been logged."
+        st.session_state.chat_history.append(("Bot", response))
+        save_data(user_data)
 
 # Show current progress and goals
 if user_data["goals"]:

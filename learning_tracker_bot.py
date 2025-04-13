@@ -175,6 +175,14 @@ if user_data["goals"]:
         st.sidebar.write(f"**{goal}**: {percent}% complete")
         st.sidebar.progress(percent)
 
+# Display logs
+with st.expander("📔 View Logs"):
+    if user_data["logs"]:
+        for log in reversed(user_data["logs"]):
+            st.write(f"📅 {log['date']} — {log['goal']}\n📝 {log['entry']}")
+    else:
+        st.info("No logs yet. Start tracking your progress!")
+
 # Display chat history
 st.divider()
 for sender, msg in st.session_state.chat_history:

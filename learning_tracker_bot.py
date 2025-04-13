@@ -100,6 +100,14 @@ def save_data(data):
 
 user_data = load_data()
 
+# ----- Smart Notification Reminder ----- #
+today_str = str(datetime.date.today())
+last_log_date = user_data.get("last_log_date")
+
+today_logged = any(log["date"] == today_str for log in user_data["logs"])
+if user_data.get("notifications_enabled", True) and not today_logged:
+    st.warning("⏰ Reminder: You haven't logged your progress today! Don't forget to update your tracker.")
+
 # ----- Display Chatbot UI ----- #
 st.subheader("👋 Hello, " + username + "!")
 st.success(get_daily_quote())
@@ -161,6 +169,7 @@ else:
         st.session_state.chat_history.append(("You", user_input))
         today = str(datetime.date.today())
         user_data["logs"].append({"date": today, "goal": user_data["goals"], "entry": user_input})
+        user_data["last_log_date"] = today
         response = "Great job! Your progress has been logged."
         st.session_state.chat_history.append(("Bot", response))
         save_data(user_data)
@@ -176,7 +185,9 @@ if user_data["goals"]:
         st.sidebar.progress(percent)
 
 # Display logs
-with st.expander("📔 View Logs"):
+tabs = st.tabs(["📔 Logs", "📅 Calendar View"])
+
+with tabs[0]:
     if user_data["logs"]:
         for log in reversed(user_data["logs"]):
             st.write(f"📅 {log['date']} — {log['goal']}\n📝 {log['entry']}")

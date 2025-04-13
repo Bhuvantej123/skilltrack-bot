@@ -82,7 +82,8 @@ def load_data():
         "daily_topic_targets_met": {},
         "roadmaps": {},
         "progress": {},
-        "notifications_enabled": True
+        "notifications_enabled": True,
+        "planner": {}
     }
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r') as f:
@@ -133,6 +134,11 @@ if not user_data["goals"]:
                 user_data["learning_paths"][goal_input] = []
                 user_data["roadmaps"][goal_input] = ROADMAPS.get(goal_input, [])
                 user_data["progress"][goal_input] = {topic: False for topic in ROADMAPS.get(goal_input, [])}
+                user_data["planner"][goal_input] = {
+                    "weekly_goal": ROADMAPS[goal_input][:3],
+                    "daily_tasks": ROADMAPS[goal_input][:1],
+                    "priority": "medium"
+                }
         st.success("Goals added successfully!")
         for goal_input in selected_goals:
             st.info(f"### Roadmap for {goal_input}")
@@ -156,8 +162,10 @@ else:
             user_data["learning_paths"].pop(goal, None)
             user_data["roadmaps"].pop(goal, None)
             user_data["progress"].pop(goal, None)
+            user_data["planner"].pop(goal, None)
             save_data(user_data)
             st.rerun()
+
         for topic in user_data["roadmaps"].get(goal, []):
             is_done = user_data["progress"][goal].get(topic, False)
             checkbox = st.checkbox(label=topic, value=is_done, key=f"{goal}_{topic}")

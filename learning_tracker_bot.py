@@ -2,6 +2,7 @@ import streamlit as st
 import datetime
 import json
 import os
+import calendar
 
 # ----- Set up ----- #
 st.set_page_config(page_title="SkillTrack Bot")
@@ -25,7 +26,10 @@ def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r') as f:
             return json.load(f)
-    return {"logs": [], "completed_topics": [], "learning_path": [], "goal": None, "last_log_date": None}
+    return {
+        "logs": [], "completed_topics": [], "learning_path": [], "goal": None,
+        "last_log_date": None, "custom_daily_duration": 1, "daily_topic_targets_met": {}
+    }
 
 def save_data(data):
     with open(DATA_FILE, 'w') as f:
@@ -35,7 +39,7 @@ user_data = load_data()
 
 # ----- Learning Goal Selection ----- #
 if not user_data["goal"]:
-    st.sidebar.subheader("🎯 Choose Your Learning Goal")
+    st.sidebar.subheader("🌟 Choose Your Learning Goal")
     goal = st.sidebar.selectbox("What do you want to learn?", ["Machine Learning", "Web Development", "Data Science", "App Development", "Other"])
     if st.sidebar.button("Set Goal"):
         user_data["goal"] = goal
@@ -44,23 +48,49 @@ if not user_data["goal"]:
                 "Supervised Learning", "Unsupervised Learning", "Regression", "Classification", "Decision Trees",
                 "Random Forests", "XGBoost", "Model Evaluation", "Overfitting", "Underfitting", "Feature Engineering"
             ]
+            user_data["roadmap"] = {
+                "Week 1": ["Supervised Learning", "Unsupervised Learning"],
+                "Week 2": ["Regression", "Classification"],
+                "Week 3": ["Decision Trees", "Random Forests"],
+                "Week 4": ["XGBoost", "Model Evaluation", "Overfitting", "Underfitting", "Feature Engineering"]
+            }
         elif goal == "Web Development":
             user_data["learning_path"] = [
                 "HTML", "CSS", "Flexbox", "Grid", "JavaScript", "React", "Node.js", "APIs", "Express.js", "MongoDB",
                 "Frontend Deployment", "Backend Deployment"
             ]
+            user_data["roadmap"] = {
+                "Week 1": ["HTML", "CSS"],
+                "Week 2": ["Flexbox", "Grid", "JavaScript"],
+                "Week 3": ["React", "Node.js"],
+                "Week 4": ["APIs", "Express.js", "MongoDB"],
+                "Week 5": ["Frontend Deployment", "Backend Deployment"]
+            }
         elif goal == "Data Science":
             user_data["learning_path"] = [
                 "Python Basics", "Numpy", "Pandas", "Data Visualization", "EDA", "Data Cleaning",
                 "Statistical Analysis", "Machine Learning Basics", "Model Evaluation"
             ]
+            user_data["roadmap"] = {
+                "Week 1": ["Python Basics", "Numpy"],
+                "Week 2": ["Pandas", "Data Visualization"],
+                "Week 3": ["EDA", "Data Cleaning"],
+                "Week 4": ["Statistical Analysis", "Machine Learning Basics", "Model Evaluation"]
+            }
         elif goal == "App Development":
             user_data["learning_path"] = [
                 "Flutter Basics", "Widgets", "Navigation", "State Management", "Firebase Integration",
                 "API Calls", "Authentication", "Deployment"
             ]
+            user_data["roadmap"] = {
+                "Week 1": ["Flutter Basics", "Widgets"],
+                "Week 2": ["Navigation", "State Management"],
+                "Week 3": ["Firebase Integration", "API Calls"],
+                "Week 4": ["Authentication", "Deployment"]
+            }
         else:
             user_data["learning_path"] = []
+            user_data["roadmap"] = {}
 
         save_data(user_data)
         st.experimental_rerun()
@@ -74,6 +104,12 @@ st.sidebar.success(f"Current Goal: {user_data['goal']}")
 today = datetime.date.today().isoformat()
 if user_data.get("last_log_date") != today:
     st.warning("👋 Don't forget to log your progress today!")
+
+# ----- Daily Study Duration Setting ----- #
+st.sidebar.subheader("⏱️ Custom Daily Learning Duration")
+daily_duration = st.sidebar.slider("How many hours per day do you plan to study?", 0.5, 12.0, float(user_data.get("custom_daily_duration", 1)), 0.5)
+user_data["custom_daily_duration"] = daily_duration
+save_data(user_data)
 
 # ----- Combine topics for detection ----- #
 all_topics = {topic.lower(): topic for topic in user_data["learning_path"]}
@@ -90,92 +126,44 @@ if st.button("Send") and user_input:
     user_data["logs"].append(log_entry)
     user_data["last_log_date"] = today
 
-    # Match topics
+    topics_learned_today = []
+
     for word in user_input.lower().split():
         word_clean = word.strip(",.()")
         if word_clean in all_topics:
             topic = all_topics[word_clean]
             if topic not in user_data["completed_topics"]:
                 user_data["completed_topics"].append(topic)
+                topics_learned_today.append(topic)
+
+    expected_topics_today = int(user_data["custom_daily_duration"])
+    actual_topics = len(topics_learned_today)
+    met_target = actual_topics >= expected_topics_today
+    user_data["daily_topic_targets_met"][today] = met_target
 
     save_data(user_data)
     st.success("✅ Logged your progress!")
 
-# ----- Progress Calculation ----- #
+    st.markdown("---")
+    st.markdown("**🤖 SkillTrack Bot says:**")
+    if topics_learned_today:
+        st.write(f"Awesome! I logged the topics: {', '.join(topics_learned_today)}")
+    else:
+        st.write("Got it! I didn't detect specific topics, but your log was saved.")
+
+    if met_target:
+        st.success(f"🎯 You met your target of {expected_topics_today} topic(s) today!")
+    else:
+        st.warning(f"⚠️ You learned {actual_topics} topic(s) today. Target was {expected_topics_today}.")
+
 completed = [t for t in user_data["learning_path"] if t in user_data["completed_topics"]]
 remaining = [t for t in user_data["learning_path"] if t not in completed]
 
-# ----- Chatbot Response ----- #
 if user_input:
-    st.markdown("---")
-    st.markdown("**🤖 SkillTrack Bot says:**")
-    if completed:
-        st.write("Nice! I’ve updated your progress.")
-    else:
-        st.write("Got it! Keep pushing forward.")
-
     if remaining:
         st.info(f"Next topic to learn: **{remaining[0]}**")
     else:
         st.success("🎉 You've completed your learning path for this goal!")
 
-# ----- Visual Progress ----- #
-st.subheader("📊 Your Learning Progress")
-st.progress(len(completed) / len(user_data["learning_path"]))
-st.write(f"{len(completed)} / {len(user_data['learning_path'])} topics completed")
-
-# ----- Personalized Learning Path Generator ----- #
-st.subheader("🎯 Your Personalized Learning Path")
-st.markdown("Based on your current progress, here's what we suggest next:")
-
-if remaining:
-    for i, topic in enumerate(remaining[:5], start=1):
-        st.write(f"{i}. {topic}")
-else:
-    st.success("You've completed your custom learning path! 🎉")
-
-# ----- Learning Roadmap (Daily, Weekly, Monthly) ----- #
-st.subheader("🗺️ Suggested Roadmap")
-with st.expander("📅 Daily Goals"):
-    st.markdown("- Learn 1 small topic")
-    st.markdown("- Practice 1 problem / mini project")
-    st.markdown("- Log your learning in SkillTrack Bot")
-
-with st.expander("📆 Weekly Goals"):
-    st.markdown("- Complete 3–5 topics")
-    st.markdown("- Build a mini-project using what you learned")
-    st.markdown("- Revise previous week’s concepts")
-
-with st.expander("🗓️ Monthly Goals"):
-    st.markdown("- Complete a full module")
-    st.markdown("- Create a capstone project and upload to GitHub")
-    st.markdown("- Share progress on your portfolio or blog")
-
-# ----- Leaderboard ----- #
-st.subheader("🏆 Leaderboard")
-leaderboard = []
-
-for filename in os.listdir(DATA_DIR):
-    if filename.endswith("_progress.json"):
-        filepath = os.path.join(DATA_DIR, filename)
-        with open(filepath, 'r') as f:
-            data = json.load(f)
-            if data.get("learning_path"):
-                score = len(data.get("completed_topics", [])) / len(data["learning_path"])
-                name = filename.replace("_progress.json", "")
-                leaderboard.append((name, round(score * 100, 1)))
-
-leaderboard.sort(key=lambda x: x[1], reverse=True)
-
-for rank, (name, progress) in enumerate(leaderboard[:10], start=1):
-    st.write(f"{rank}. **{name}** - {progress}% completed")
-
-# ----- Log History ----- #
-st.subheader("🗒️ Your Learning Log")
-if user_data["logs"]:
-    for log in reversed(user_data["logs"]):
-        st.write(f"[{log['date']}] {log['entry']}")
-else:
-    st.write("No logs yet. Start learning and log your first entry!")
 
 

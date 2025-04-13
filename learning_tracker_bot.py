@@ -104,7 +104,7 @@ if not user_data["goal"]:
             user_data["roadmap"] = {}
 
         save_data(user_data)
-        st.experimental_rerun()
+        st.rerun()
 
 if not user_data["goal"]:
     st.stop()

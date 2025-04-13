@@ -8,8 +8,18 @@ st.set_page_config(page_title="SkillTrack Bot")
 st.title("🤖 SkillTrack Bot")
 st.caption("Your chatbot assistant to track ML & Web Dev progress.")
 
+# ----- Multi-user Key Input ----- #
+st.sidebar.header("👤 User Login")
+username = st.sidebar.text_input("Enter your name or username")
+
+if not username:
+    st.warning("Please enter your name in the sidebar to continue.")
+    st.stop()
+
 # ----- Data Persistence ----- #
-DATA_FILE = "progress_data.json"
+DATA_DIR = "user_data"
+os.makedirs(DATA_DIR, exist_ok=True)
+DATA_FILE = os.path.join(DATA_DIR, f"{username}_progress.json")
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -21,7 +31,6 @@ def save_data(data):
     with open(DATA_FILE, 'w') as f:
         json.dump(data, f, indent=2)
 
-# Load data
 user_data = load_data()
 
 # ----- Topic Roadmaps ----- #
@@ -99,6 +108,23 @@ with col2:
     st.progress(len(web_done) / len(web_roadmap))
     st.write(f"{len(web_done)} / {len(web_roadmap)} topics completed")
 
+# ----- Learning Roadmap (Daily, Weekly, Monthly) ----- #
+st.subheader("🗺️ Suggested Roadmap")
+with st.expander("📅 Daily Goals"):
+    st.markdown("- Learn 1 small topic (e.g., Regression, HTML)")
+    st.markdown("- Practice 1 problem / mini project")
+    st.markdown("- Log your learning in SkillTrack Bot")
+
+with st.expander("📆 Weekly Goals"):
+    st.markdown("- Complete 3–5 topics from either ML or Web Dev")
+    st.markdown("- Build a mini-project using what you learned")
+    st.markdown("- Revise previous week’s concepts")
+
+with st.expander("🗓️ Monthly Goals"):
+    st.markdown("- Complete a full module (e.g., ML Regression or Web Frontend)")
+    st.markdown("- Create a capstone project and upload to GitHub")
+    st.markdown("- Share progress on your portfolio or blog")
+
 # ----- Log History ----- #
 st.subheader("🗒️ Your Learning Log")
 if user_data["logs"]:
@@ -106,3 +132,4 @@ if user_data["logs"]:
         st.write(f"[{log['date']}] {log['entry']}")
 else:
     st.write("No logs yet. Start learning and log your first entry!")
+

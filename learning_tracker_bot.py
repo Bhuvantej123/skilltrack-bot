@@ -7,8 +7,7 @@ import random
 
 # ----- Set up ----- #
 st.set_page_config(page_title="SkillTrack App")
-st.title("📚 SkillTrack")
-st.caption("Your ultimate learning progress tracker")
+st.title("🤖 SkillTrack Chatbot")
 
 # ----- Multi-user Key Input ----- #
 st.sidebar.header("👤 User Login")
@@ -32,6 +31,20 @@ QUOTES = [
     "A little progress each day adds up to big results.",
     "The future depends on what you do today."
 ]
+
+ROADMAPS = {
+    "Machine Learning": [
+        "Python Basics", "Numpy & Pandas", "Data Visualization", "Statistics & Probability",
+        "Linear Regression", "Logistic Regression", "Decision Trees", "SVM",
+        "Ensemble Methods", "Clustering", "Dimensionality Reduction", "Model Evaluation",
+        "Neural Networks", "Deep Learning Basics", "Projects"
+    ],
+    "Web Development": [
+        "HTML & CSS", "JavaScript Basics", "DOM Manipulation", "Responsive Design",
+        "Version Control (Git)", "Frontend Frameworks (React)", "Backend Basics",
+        "APIs & REST", "Databases", "Authentication & Security", "Deployment", "Full Stack Project"
+    ]
+}
 
 def get_daily_quote():
     today_index = datetime.date.today().toordinal() % len(QUOTES)
@@ -57,7 +70,9 @@ def load_data():
         "last_log_date": None,
         "custom_daily_duration": 1,
         "daily_topic_targets_met": {},
-        "roadmaps": {}
+        "roadmaps": {},
+        "progress": {},
+        "notifications_enabled": True
     }
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r') as f:
@@ -75,26 +90,50 @@ def save_data(data):
 
 user_data = load_data()
 
-# ----- Predefined Learning Roadmaps with Subtopics ----- #
-ROADMAPS = {
-    "Machine Learning": [
-        "Python Basics", "Numpy & Pandas", "Data Visualization", "Statistics & Probability",
-        "Linear Regression", "Logistic Regression", "Decision Trees", "SVM",
-        "Ensemble Methods", "Clustering", "Dimensionality Reduction", "Model Evaluation",
-        "Neural Networks", "Deep Learning Basics", "Projects"
-    ],
-    "Web Development": [
-        "HTML & CSS", "JavaScript Basics", "DOM Manipulation", "Responsive Design",
-        "Version Control (Git)", "Frontend Frameworks (React)", "Backend Basics",
-        "APIs & REST", "Databases", "Authentication & Security", "Deployment", "Full Stack Project"
-    ],
-    "Data Science": [
-        "Python for Data Science", "Pandas & Numpy", "Matplotlib & Seaborn", "EDA",
-        "Data Cleaning", "Feature Engineering", "ML Algorithms", "Model Deployment"
-    ]
-}
+# ----- Display Chatbot UI ----- #
+st.subheader("👋 Hello, " + username + "!")
+st.success(get_daily_quote())
 
-user_data["roadmaps"] = ROADMAPS
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-# ----- Save ----- #
-save_data(user_data)
+# Initial prompt based on goal or roadmap
+if not user_data["goals"]:
+    question = "What do you want to learn? (e.g., Machine Learning, Web Development, etc.)"
+else:
+    question = f"What did you work on today in {', '.join(user_data['goals'])}?"
+
+user_input = st.text_input("💬 You:", key="chat")
+
+if user_input:
+    st.session_state.chat_history.append(("You", user_input))
+    response = ""
+
+    if not user_data["goals"]:
+        user_data["goals"].append(user_input)
+        user_data["learning_paths"][user_input] = []
+        user_data["roadmaps"][user_input] = ROADMAPS.get(user_input, [])
+        user_data["progress"][user_input] = {topic: False for topic in ROADMAPS.get(user_input, [])}
+        response = f"Great! I've added {user_input} to your learning goals and built a roadmap for it."
+    else:
+        today = str(datetime.date.today())
+        user_data["logs"].append({"date": today, "goal": user_data["goals"], "entry": user_input})
+        response = "Nice progress! I've logged this entry for today."
+
+    st.session_state.chat_history.append(("Bot", response))
+    save_data(user_data)
+
+# Show current progress and goals
+if user_data["goals"]:
+    st.sidebar.subheader("📈 Your Progress")
+    for goal in user_data["goals"]:
+        completed = sum(user_data["progress"].get(goal, {}).values())
+        total = len(user_data["progress"].get(goal, {}))
+        percent = int((completed / total) * 100) if total > 0 else 0
+        st.sidebar.write(f"**{goal}**: {percent}% complete")
+        st.sidebar.progress(percent)
+
+# Display chat history
+st.divider()
+for sender, msg in st.session_state.chat_history:
+    st.markdown(f"**{sender}:** {msg}")

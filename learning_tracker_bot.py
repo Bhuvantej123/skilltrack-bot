@@ -138,7 +138,7 @@ elif user_data["custom_daily_duration"] is None:
         user_data["custom_daily_duration"] = duration
         st.success(f"Awesome! You'll spend {duration} hour(s) per day learning.")
         save_data(user_data)
-        st.experimental_rerun()
+        st.rerun()
 else:
     st.markdown("### 📋 Your Learning Roadmap")
     for goal in user_data["goals"]:
@@ -149,7 +149,7 @@ else:
             user_data["roadmaps"].pop(goal, None)
             user_data["progress"].pop(goal, None)
             save_data(user_data)
-            st.experimental_rerun()
+            st.rerun()
         for topic in user_data["roadmaps"].get(goal, []):
             is_done = user_data["progress"][goal].get(topic, False)
             checkbox = st.checkbox(label=topic, value=is_done, key=f"{goal}_{topic}")
@@ -167,7 +167,7 @@ else:
 
 # Show current progress and goals
 if user_data["goals"]:
-    st.sidebar.subheader("📈 Your Progress")
+    st.sidebar.subheader("📊 Your Progress")
     for goal in user_data["goals"]:
         completed = sum(user_data["progress"].get(goal, {}).values())
         total = len(user_data["progress"].get(goal, {}))
